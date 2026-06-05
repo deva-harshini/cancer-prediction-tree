@@ -1,0 +1,107 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
+import matplotlib.pyplot as plt
+import sqlite3
+
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+from matplotlib import pyplot
+
+data = pd.read_csv('data.csv')
+
+data
+
+x1 = data.iloc[:,[0]].values
+x1
+
+x2 = data.iloc[:,[1]].values
+x2
+
+y=data.iloc[:,2].values
+y
+
+x_train = data[["TAU (nM)", "IR (Gy)"]]
+x_train
+
+X2_train, X2_test,y_train,y_test = train_test_split(x_train,y,test_size=0.2,random_state=0)
+
+X2_train
+
+logreg = LogisticRegression(solver='lbfgs', max_iter=2)
+logreg.fit(X2_train, y_train)
+
+y_pred = logreg.predict(X2_test)
+y_pred
+
+print('Accuracy of logistic regression classifier on train set: {}'.format(logreg.score(X2_test, y_test)))
+
+y_pred_proba = logreg.predict_proba(X2_test)[::,1]
+fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
+
+#create ROC curve
+plt.plot(fpr,tpr)
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
+
+#define metrics
+y_pred_proba = logreg.predict_proba(X2_test)[::,1]
+fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
+auc = metrics.roc_auc_score(y_test, y_pred_proba)
+
+#create ROC curve
+plt.plot(fpr,tpr,label="AUC="+str(auc))
+plt.ylabel('Sensitivity')
+plt.xlabel('Specificity')
+plt.legend(loc=4)
+plt.show()
+
+lr_probs = logreg.predict_proba(X2_train)
+# keep probabilities for the positive outcome only
+lr_probs = lr_probs[:, 1]
+lr_probs
+
+
+
+# calculate scores
+ns_probs = [1 for _ in range(len(y_test))]
+ns_probs
+
+pred_prob1 = logreg.predict_proba(X2_train)
+fpr1, tpr1, thresh1 = roc_curve(y_train, pred_prob1[:,1], pos_label=1)
+
+# # roc curve for tpr = fpr
+random_probs = [0 for i in range(len(y_test))]
+p_fpr, p_tpr, _ = roc_curve(y_test, random_probs, pos_label=1)
+
+np.sum(pred_prob1)
+
+thresh1
+
+db = sqlite3.connect('record.db')
+
+db.execute('''DROP TABLE patient;''')
+
+# Create a table to store book information
+db.execute('''CREATE TABLE IF NOT EXISTS patient
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT NOT NULL,
+                  status INTEGER NOT NULL,
+                  value INTEGER NOT NULL,
+                  radiation INTEGER NOT NULL)''')
+
+name = input("Enter the name: ")
+status = int(input("Enter the status: "))
+value = input("Enter the value: ")
+radiation = input("Enter the radiation: ")
+
+# Insert the book information into the database
+db.execute("INSERT INTO patient (name, status, value, radiation) VALUES (?, ?, ?, ?)", (name, status, value, radiation))
+x = db.execute('''SELECT * FROM patient''').fetchall()
+print(x)
+db.commit()
+
+
